@@ -1,7 +1,7 @@
-# 🌤️ **Coimbatore Weather Prediction App**  
+# 🌤️ **Weather Prediction**  
 
 ## 🌟 Overview  
-The **Coimbatore Weather Prediction App** is an interactive **Streamlit-based web application** that provides:  
+The **Weather Prediction App** is an interactive **Streamlit-based web application** that provides:  
 ✔ **Real-time weather updates** 📡  
 ✔ **Historical weather trends** 📊  
 ✔ **Machine learning-based forecasts** 🤖  
