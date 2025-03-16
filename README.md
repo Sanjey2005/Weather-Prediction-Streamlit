@@ -1,10 +1,10 @@
 ```markdown
-# 🌤️ Coimbatore Weather Prediction App
+#🌤️ Coimbatore Weather Prediction App
 
-## Overview
+##Overview
 The **Coimbatore Weather Prediction App** is a **Streamlit-based web application** that fetches real-time and historical weather data for Coimbatore. It provides **visualizations, statistical analysis, and machine learning-based forecasts**.
 
-## Features
+##Features
 - 🌐 **Real-Time Weather Data**: Fetches current weather conditions using the WeatherAPI.
 - 🔄 **Historical Weather Trends**: Collects past weather data for trend analysis.
 - 🌍 **Data Visualization**: Uses **Matplotlib, Seaborn, and Plotly** for interactive charts.
@@ -13,9 +13,9 @@ The **Coimbatore Weather Prediction App** is a **Streamlit-based web application
 - 🎨 **User-Friendly UI**: Built with **Streamlit** for an interactive experience.
 - ⚡ **API Rate Monitoring**: Prevents exceeding API usage limits.
 
-## Installation
+##Installation
 
-### Prerequisites
+###Prerequisites
 Ensure you have Python installed on your system (Python 3.8 or later is recommended). You can check your version with:
 ```sh
 python --version
@@ -67,7 +67,7 @@ statsmodels
 
 ##Deployed version link
 
-(https://weather-prediction-app-tzs9mrfzimtenjzczafs9r.streamlit.app/)
+[🔗  Link](https://weather-prediction-app-tzs9mrfzimtenjzczafs9r.streamlit.app/)
 
 ## Contact
 For any questions, feel free to reach out via:
