@@ -17,18 +17,83 @@ import statsmodels.api as sm
 
 # Set page config
 st.set_page_config(
-    page_title="Coimbatore Weather Prediction",
+    page_title="Weather Prediction",
     page_icon="🌤️",
     layout="wide"
 )
 
-# API Configuration - Only WeatherAPI is supported now
+# Popular cities list for dropdown
+popular_cities = [
+    # Major Indian Cities
+    "Leh", "Mumbai", "Delhi", "Bangalore", "Chennai", "Kolkata", "Hyderabad", "Ahmedabad",
+    "Pune", "Jaipur", "Lucknow", "Kanpur", "Nagpur", "Indore", "Thane", "Bhopal",
+    "Visakhapatnam", "Coimbatore", "Kochi", "Guwahati", "Shimla", "Darjeeling", "Manali",
+    "Amritsar", "Chandigarh", "Varanasi", "Patna", "Ranchi", "Raipur", "Surat", "Vadodara",
+    "Ludhiana", "Agra", "Meerut", "Dehradun", "Jodhpur", "Udaipur", "Mysore", "Tiruchirapalli",
+    "Madurai", "Nashik", "Aurangabad", "Vijayawada", "Gwalior", "Allahabad", "Jamshedpur",
+    "Bhubaneswar", "Cuttack", "Srinagar", "Panaji", "Shillong", "Itanagar", "Aizawl", "Gangtok",
+    "Kozhikode", "Thiruvananthapuram", "Rajkot", "Jalandhar", "Dhanbad", "Bokaro", "Faridabad",
+    "Ghaziabad", "Noida", "Gandhinagar", "Mangalore", "Belgaum", "Jabalpur", "Bilaspur",
+    "Haridwar", "Rishikesh", "Kota", "Ajmer", "Aligarh", "Bikaner", "Silchar", "Imphal", 
+    "Tezpur", "Puducherry", "Port Blair",
+
+    # Major Global Cities
+    "New York", "London", "Tokyo", "Paris", "Sydney", "Dubai", "Singapore", "Hong Kong",
+    "Los Angeles", "San Francisco", "Chicago", "Toronto", "Vancouver", "Berlin", "Rome",
+    "Madrid", "Barcelona", "Moscow", "Istanbul", "Bangkok", "Seoul", "Beijing", "Shanghai",
+    "Mexico City", "São Paulo", "Rio de Janeiro", "Buenos Aires", "Cairo", "Cape Town",
+    "Amsterdam", "Vienna", "Zurich", "Lisbon", "Athens", "Prague", "Helsinki", "Stockholm",
+    "Oslo", "Copenhagen", "Venice", "Milan", "Florence", "Edinburgh", "Dublin", "Brussels",
+    "Manila", "Jakarta", "Ho Chi Minh City", "Kuala Lumpur", "Taipei", "Doha", "Riyadh",
+    "Abu Dhabi", "Johannesburg"
+]
+
+all_cities = sorted(popular_cities)
+
+# Function to get user's location
+def get_user_location():
+    try:
+        response = requests.get('https://ipinfo.io/json', timeout=5)
+        if response.status_code == 200:
+            data = response.json()
+            return data.get('city', 'Coimbatore')  #default
+        return 'Coimbatore'
+    except Exception as e:
+        return 'Coimbatore'  
+
+# API Configuration
 with st.sidebar:
+    st.header("Settings")
+    
+    # Location selection
+    location_options = ["Auto-detect", "Enter manually"] 
+    location_choice = st.selectbox("Select location method:", location_options, index=0)
+    
+    if location_choice == "Auto-detect":
+        user_location = get_user_location()
+        st.success(f"Auto-detected location: {user_location}")
+        selected_location = user_location
+    elif location_choice == "Enter manually":
+        # Add the dropdown selector for cities
+        city_selection_method = st.radio("Choose selection method:", ["Select from list", "Type city name"])
+        
+        if city_selection_method == "Select from list":
+            selected_location = st.selectbox("Select city:", all_cities, index=all_cities.index("Coimbatore") if "Coimbatore" in all_cities else 0)
+        else:
+            manual_location = st.text_input("Enter location:", value="Coimbatore")
+            if manual_location:
+                selected_location = manual_location
+            else:
+                selected_location = "Coimbatore"
+    else:
+        selected_location = location_choice
+        
+    # API key configuration
     st.header("API Configuration")
     weatherapi_api_key = st.text_input("Enter WeatherAPI Key:", value="8bf450c8d0b94a44b78151729251503", type="password")
     
     # Add API usage information
-    st.info("WeatherAPI Free Plan Limits: 500 calls per day\nCurrent implementation optimizes API call usage to avoid hitting this limit.")
+    st.info("WeatherAPI Free Plan Limits: 750 calls per day\nCurrent implementation optimizes API call usage to avoid hitting this limit.")
 
 # API Call Counter and Rate Limiter
 if 'api_calls' not in st.session_state:
@@ -36,8 +101,8 @@ if 'api_calls' not in st.session_state:
 
 def log_api_call():
     st.session_state.api_calls += 1
-    if st.session_state.api_calls >= 450:  # Set a safe threshold below the 500 limit
-        st.sidebar.warning(f"⚠️ High API usage detected: {st.session_state.api_calls}/500 calls. Consider limiting refreshes.")
+    if st.session_state.api_calls >= 700:  # Set a safe threshold below the 750 limit
+        st.sidebar.warning(f"⚠️ High API usage detected: {st.session_state.api_calls}/750 calls. Consider limiting refreshes.")
 
 def reset_api_counter():
     st.session_state.api_calls = 0
@@ -81,8 +146,8 @@ def make_weatherapi_request(endpoint, params):
         return None, f"Unexpected error: {str(e)}"
 
 # Function to fetch real-time weather data
-def fetch_realtime_weather():
-    data, error = make_weatherapi_request('current.json', {'q': 'Coimbatore', 'aqi': 'yes'})
+def fetch_realtime_weather(location):
+    data, error = make_weatherapi_request('current.json', {'q': location, 'aqi': 'yes'})
     
     if error:
         st.error(f"Failed to fetch real-time weather: {error}")
@@ -122,7 +187,7 @@ def fetch_realtime_weather():
         return None
 
 # Function to fetch historical data with expanded range
-def fetch_historical_weather(days=30):
+def fetch_historical_weather(location, days=30):
     # Get dates for the past X days (default 30 days)
     end_date = datetime.now().date()
     start_date = end_date - timedelta(days=days)
@@ -130,7 +195,7 @@ def fetch_historical_weather(days=30):
     all_data = []
     current_date = start_date
     
-    with st.spinner(f"Fetching historical data for the past {days} days..."):
+    with st.spinner(f"Fetching historical data for {location} - past {days} days..."):
         # Create a progress bar
         progress_bar = st.progress(0)
         days_processed = 0
@@ -146,7 +211,7 @@ def fetch_historical_weather(days=30):
             date_str = current_date.strftime('%Y-%m-%d')
             
             # Make API call
-            data, error = make_weatherapi_request('history.json', {'q': 'Coimbatore', 'dt': date_str})
+            data, error = make_weatherapi_request('history.json', {'q': location, 'dt': date_str})
             
             if error:
                 st.warning(f"Could not fetch data for {date_str}: {error}")
@@ -228,9 +293,9 @@ def fetch_historical_weather(days=30):
         return None
 
 # Function to fetch forecast data
-def fetch_forecast_weather(days=7):
+def fetch_forecast_weather(location, days=7):
     # WeatherAPI forecast
-    data, error = make_weatherapi_request('forecast.json', {'q': 'Coimbatore', 'days': min(days, 14), 'aqi': 'yes'})
+    data, error = make_weatherapi_request('forecast.json', {'q': location, 'days': min(days, 14), 'aqi': 'yes'})
     
     if error:
         st.error(f"Failed to fetch forecast: {error}")
@@ -300,6 +365,7 @@ def fetch_forecast_weather(days=7):
         return None
 
 # Function to clean and preprocess data
+# Function to clean and preprocess data
 def clean_data(df):
     # Make a copy to avoid modifying the original
     df_clean = df.copy()
@@ -338,9 +404,17 @@ def clean_data(df):
     
     return df_clean
 
+# Function to get location-specific filename
+def get_location_filename(location):
+    # Remove spaces and special characters, convert to lowercase
+    safe_location = ''.join(e.lower() for e in location if e.isalnum())
+    return f"{safe_location}_weather_data.csv"
+
 # Function to save data to CSV
-def save_to_csv(df, filename="coimbatore_weather_data.csv"):
+def save_to_csv(df, location):
     try:
+        filename = get_location_filename(location)
+        
         # Check if file exists
         if os.path.exists(filename):
             # Read existing data
@@ -371,12 +445,42 @@ def save_to_csv(df, filename="coimbatore_weather_data.csv"):
         return df
 
 # Function to load data from CSV or fetch new data with expanded historical range
-@st.cache_data(ttl=3600)  # Cache for 1 hour
-def load_or_fetch_data(initial_load=False):
+def load_or_fetch_data(location, force_refresh=False, initial_load=False):
+    filename = get_location_filename(location)
+    
+    # If force refresh, skip checking for local data
+    if force_refresh:
+        st.info(f"Refreshing data for {location}...")
+        # Get realtime data first
+        realtime_df = fetch_realtime_weather(location)
+        
+        # Then get historical data to build up our dataset
+        historical_df = fetch_historical_weather(location, days=30)  # Get 30 days of historical data
+        
+        if historical_df is not None:
+            if realtime_df is not None:
+                combined_df = pd.concat([historical_df, realtime_df])
+            else:
+                combined_df = historical_df
+                
+            combined_df = combined_df[~combined_df.index.duplicated(keep='last')]
+            combined_df = combined_df.sort_index()
+            combined_df = save_to_csv(combined_df, location)
+            st.success(f"Fetched {len(combined_df)} data points spanning {combined_df.index.nunique()} days.")
+            return combined_df
+        elif realtime_df is not None:
+            # If only realtime data is available
+            realtime_df = save_to_csv(realtime_df, location)
+            st.warning("Only current weather data is available.")
+            return realtime_df
+            
+        st.error("Failed to fetch any weather data. Please check API key and connection.")
+        return None
+    
     # First check if we have locally stored data
     try:
-        if os.path.exists("coimbatore_weather_data.csv"):
-            df = pd.read_csv("coimbatore_weather_data.csv")
+        if os.path.exists(filename):
+            df = pd.read_csv(filename)
             
             # Ensure datetime is properly formatted
             df['datetime'] = pd.to_datetime(df['datetime'], format='%Y-%m-%d %H:%M:%S', errors='coerce')
@@ -393,38 +497,38 @@ def load_or_fetch_data(initial_load=False):
             
             # If we have data but it's more than 1 hour old, fetch new realtime data
             if (datetime.now() - df.index.max()).total_seconds() > 3600:
-                st.info("Updating with latest weather data...")
-                realtime_df = fetch_realtime_weather()
+                st.info(f"Updating with latest weather data for {location}...")
+                realtime_df = fetch_realtime_weather(location)
                 if realtime_df is not None:
                     df = pd.concat([df, realtime_df])
                     df = df[~df.index.duplicated(keep='last')]
                     df = df.sort_index()
-                    df = save_to_csv(df)
+                    df = save_to_csv(df, location)
             
             # If this is initial load and we don't have many data points, fetch historical
             if initial_load and (len(df) < 30 or df.index.nunique() < 10):
-                st.info("Not enough historical data. Fetching more data...")
-                historical_df = fetch_historical_weather(days=30)  # Fetch 30 days of historical data
+                st.info(f"Not enough historical data for {location}. Fetching more data...")
+                historical_df = fetch_historical_weather(location, days=30)  # Fetch 30 days of historical data
                 if historical_df is not None:
                     df = pd.concat([historical_df, df])
                     df = df[~df.index.duplicated(keep='last')]
                     df = df.sort_index()
-                    df = save_to_csv(df)
+                    df = save_to_csv(df, location)
             
-            st.success(f"Loaded {len(df)} weather data points spanning {df.index.nunique()} days.")
+            st.success(f"Loaded {len(df)} weather data points for {location} spanning {df.index.nunique()} days.")
             return df
     except Exception as e:
         st.warning(f"Error loading existing data: {str(e)}. Will fetch new data.")
     
     # If we get here, either no file exists or there was an error loading it
     # Fetch both realtime and historical data
-    st.info("Fetching new weather data...")
+    st.info(f"Fetching new weather data for {location}...")
     
     # Get realtime data first
-    realtime_df = fetch_realtime_weather()
+    realtime_df = fetch_realtime_weather(location)
     
     # Then get historical data to build up our dataset
-    historical_df = fetch_historical_weather(days=30)  # Get 30 days of historical data
+    historical_df = fetch_historical_weather(location, days=30)  # Get 30 days of historical data
     
     if historical_df is not None:
         if realtime_df is not None:
@@ -434,41 +538,51 @@ def load_or_fetch_data(initial_load=False):
             
         combined_df = combined_df[~combined_df.index.duplicated(keep='last')]
         combined_df = combined_df.sort_index()
-        combined_df = save_to_csv(combined_df)
+        combined_df = save_to_csv(combined_df, location)
         st.success(f"Fetched {len(combined_df)} data points spanning {combined_df.index.nunique()} days.")
         return combined_df
     elif realtime_df is not None:
         # If only realtime data is available
-        realtime_df = save_to_csv(realtime_df)
+        realtime_df = save_to_csv(realtime_df, location)
         st.warning("Only current weather data is available.")
         return realtime_df
     
     st.error("Failed to fetch any weather data. Please check API key and connection.")
     return None
 
-# Create a placeholder for the dataset
+# Create placeholders for tracking state
 if 'df' not in st.session_state:
     st.session_state.df = None
+if 'current_location' not in st.session_state:
+    st.session_state.current_location = "Coimbatore"  # Default location
+
+# Check if location has changed
+location_changed = (st.session_state.current_location != selected_location)
+if location_changed:
+    st.session_state.current_location = selected_location
+    st.session_state.df = None  # Reset data when location changes
 
 # Add a refresh button
 if st.sidebar.button("Refresh Weather Data"):
-    # Clear the cache to force a refresh
-    st.cache_data.clear()
-    st.session_state.df = load_or_fetch_data(initial_load=True)
+    # Force refresh the data
+    st.session_state.df = load_or_fetch_data(selected_location, force_refresh=True)
 
 # Display API usage counter
-st.sidebar.info(f"API calls today: {st.session_state.api_calls}/500")
+st.sidebar.info(f"API calls today: {st.session_state.api_calls}/750")
+
+# Display current location
+st.sidebar.markdown(f"### Currently showing: **{selected_location}**")
 
 # Load data if not already loaded
 if st.session_state.df is None:
-    st.session_state.df = load_or_fetch_data(initial_load=True)
+    st.session_state.df = load_or_fetch_data(selected_location, initial_load=True)
 
 # Set df variable for compatibility with the rest of the code
 df = st.session_state.df
 
 # Check if data is available
 if df is None or len(df) == 0:
-    st.error("No weather data available. Please check your API key and try again.")
+    st.error(f"No weather data available for {selected_location}. Please check your API key and try again.")
     st.stop()
 else:
     # Display data size info
@@ -478,7 +592,7 @@ else:
 tab1, tab2, tab3, tab4, tab5 = st.tabs(["🌤️ Current Weather", "📊 Data Overview", "🔍 Data Analysis", "🤖 Model Performance", "🔮 Weather Forecast"])
 
 with tab1:
-    st.header("Current Weather in Coimbatore")
+    st.header(f"Current Weather in {selected_location}")
     
     # Get the most recent data
     current_weather = df.iloc[-1] if not df.empty else None
@@ -817,13 +931,17 @@ with tab4:
     else:
         st.warning("Not enough data points for modeling. Need at least 5 data points.")
 
+import streamlit as st
+import plotly.express as px
+from datetime import datetime, timedelta
+
 with tab5:
     st.header("Weather Forecast")
     
     # Fetch weather forecast data
     with st.spinner("Fetching forecast data..."):
         try:
-            daily_forecast, hourly_forecast = fetch_forecast_weather(days=7)
+            daily_forecast, hourly_forecast = fetch_forecast_weather(selected_location, days=7)
             
             if daily_forecast is not None and hourly_forecast is not None:
                 # Display daily forecast
@@ -831,75 +949,76 @@ with tab5:
                 
                 # Create forecast cards
                 forecast_cols = st.columns(min(7, len(daily_forecast)))
-                
+
                 for i, (idx, day) in enumerate(daily_forecast.iterrows()):
                     if i < len(forecast_cols):
                         with forecast_cols[i]:
                             date_str = idx.strftime('%a, %b %d')
                             st.markdown(f"<h4 style='text-align: center;'>{date_str}</h4>", unsafe_allow_html=True)
-                            
+
                             # Display temperature
                             temp = day.get('temp')
                             if temp is not None:
                                 st.markdown(f"<p style='text-align: center; font-size: 24px;'>{temp:.1f}°C</p>", unsafe_allow_html=True)
-                            
+
                             # Display min/max
                             tempmin = day.get('tempmin')
                             tempmax = day.get('tempmax')
                             if tempmin is not None and tempmax is not None:
                                 st.markdown(f"<p style='text-align: center;'>Min: {tempmin:.1f}°C<br>Max: {tempmax:.1f}°C</p>", unsafe_allow_html=True)
-                            
+
                             # Display other metrics
                             humidity = day.get('humidity')
                             if humidity is not None:
                                 st.markdown(f"<p style='text-align: center;'>Humidity: {humidity:.0f}%</p>", unsafe_allow_html=True)
-                            
+
                             precip = day.get('precip')
                             if precip is not None:
                                 st.markdown(f"<p style='text-align: center;'>Precip: {precip:.1f}mm</p>", unsafe_allow_html=True)
-                            
+
                             # Display description
                             description = day.get('description')
                             if description is not None:
                                 st.markdown(f"<p style='text-align: center;'>{description}</p>", unsafe_allow_html=True)
-                
+
                 # Display hourly forecast
                 st.subheader("Hourly Temperature Forecast")
-                
+
                 # Filter to next 24 hours
                 next_24h = hourly_forecast.loc[hourly_forecast.index <= datetime.now() + timedelta(hours=24)]
-                
+
                 if not next_24h.empty:
                     fig = px.line(next_24h, y='temp',
-                                labels={'temp': 'Temperature (°C)', 'datetime': 'Date & Time'},
-                                title='Next 24 Hours Temperature Forecast')
+                                  labels={'temp': 'Temperature (°C)', 'datetime': 'Date & Time'},
+                                  title='Next 24 Hours Temperature Forecast')
                     fig.update_layout(height=400)
                     st.plotly_chart(fig, use_container_width=True)
-                    
+
                     # Show hourly data in a table
                     st.subheader("Detailed Hourly Forecast")
-                    
+
                     # Select relevant columns
                     hourly_display_cols = ['temp', 'humidity', 'precip', 'windspeed', 'description']
                     hourly_display = next_24h[hourly_display_cols].copy()
-                    
+
                     # Rename columns for display
-                    hourly_display.columns = ['Temperature (°C)', 'Humidity (%)', 'Precipitation (mm)', 
-                                             'Wind Speed (km/h)', 'Condition']
-                    
+                    hourly_display.columns = ['Temperature (°C)', 'Humidity (%)', 'Precipitation (mm)',
+                                              'Wind Speed (km/h)', 'Condition']
+
                     # Display with datetime index
                     st.dataframe(hourly_display)
                 else:
                     st.warning("No hourly forecast data available for the next 24 hours.")
             else:
                 st.error("Failed to fetch forecast data. Please check your API key and connection.")
+        
         except Exception as e:
             st.error(f"Error displaying forecast: {str(e)}")
 
-# Add footer
-st.markdown("---")
-st.markdown("""
-<div style="text-align: center;">
-    <p>Weather data provided by WeatherAPI.com | Built with Streamlit</p>
-</div>
-""", unsafe_allow_html=True)
+    # Add footer
+    st.markdown("---")
+    st.markdown("""
+    <div style="text-align: center;">
+        <p>Weather data provided by WeatherAPI.com | Built with Streamlit</p>
+    </div>
+    """, unsafe_allow_html=True)
