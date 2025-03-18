@@ -82,5 +82,5 @@ For any questions, feel free to reach out via:
 
 ---
 Made with ❤️ using **Streamlit & Machine Learning**!
-```
+
 
